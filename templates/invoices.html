@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 m-0">Invoices & Reports</h1>
+    <a
+      class="btn btn-outline-primary"
+      href="{{ url_for('sales_report_csv', from=from_date, to=to_date) }}"
+    >
+      Download Sales CSV (Advanced)
+    </a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2">
+        <div class="col-md-3">
+          <label class="form-label">From</label>
+          <input class="form-control" type="date" name="from" value="{{ from_date }}" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">To</label>
+          <input class="form-control" type="date" name="to" value="{{ to_date }}" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Customer</label>
+          <input class="form-control" name="customer" placeholder="Name / email / ID / phone" value="{{ customer_query }}" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Status</label>
+          <select class="form-select" name="status">
+            <option value="">All</option>
+            <option value="PAID" {{ "selected" if status == "PAID" else "" }}>PAID</option>
+            <option value="PENDING" {{ "selected" if status == "PENDING" else "" }}>PENDING</option>
+            <option value="PARTIAL" {{ "selected" if status == "PARTIAL" else "" }}>PARTIAL</option>
+          </select>
+        </div>
+        <div class="col-md-1">
+          <label class="form-label">Tax</label>
+          <select class="form-select" name="tax_type">
+            <option value="">All</option>
+            <option value="GST" {{ "selected" if tax_type == "GST" else "" }}>GST</option>
+            <option value="VAT" {{ "selected" if tax_type == "VAT" else "" }}>VAT</option>
+          </select>
+        </div>
+        <div class="col-md-12 d-grid">
+          <button class="btn btn-primary mt-4">Apply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {% if invoices %}
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Tax Type</th>
+                <th>Payment</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for invoice in invoices %}
+                <tr>
+                  <td>{{ invoice.invoice_number }}</td>
+                  <td>{{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                  <td>{{ invoice.customer.name if invoice.customer else "Walk-in" }}</td>
+                  <td><span class="badge bg-info">{{ invoice.tax_type }}</span></td>
+                  <td>{{ invoice.payment_method|upper }}</td>
+                  <td>
+                    <span class="badge bg-{{ 'success' if invoice.status == 'PAID' else 'warning' }}">
+                      {{ invoice.status }}
+                    </span>
+                  </td>
+                  <td>{{ currency_symbol }} {{ invoice.grand_total|money }}</td>
+                  <td>
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('invoice_detail', invoice_id=invoice.id) }}">
+                      View / Print
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted m-0">No invoices match your filters.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

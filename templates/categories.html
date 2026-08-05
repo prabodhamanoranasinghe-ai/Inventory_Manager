@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 m-0">Category Management</h1>
+    <a class="btn btn-outline-primary" href="{{ url_for('products') }}">Go to Products</a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5">Add Category</h2>
+      <form class="row g-2" method="post" action="{{ url_for('categories') }}">
+        <div class="col-md-4">
+          <label class="form-label">Category Name</label>
+          <input class="form-control" name="name" placeholder="Electronics" required />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Description</label>
+          <input class="form-control" name="description" placeholder="Optional description" />
+        </div>
+        <div class="col-md-2 d-grid">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary">Add Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h2 class="h5">Category List</h2>
+      {% if categories %}
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for category in categories %}
+                <tr>
+                  <td><strong>{{ category.name }}</strong></td>
+                  <td>{{ category.description or "-" }}</td>
+                  <td>{{ category.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted m-0">No categories available.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
