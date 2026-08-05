@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from app import (
     AppSetting,
+    Category,
     Customer,
     Invoice,
     Product,
@@ -61,6 +62,33 @@ class InventoryAppTestCase(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Product.query.count(), 1)
+
+    def test_admin_can_add_category_and_assign_to_product(self):
+        self.login("admin", "admin123")
+        category_response = self.client.post(
+            "/categories",
+            data={"name": "Mobile", "description": "Mobile devices"},
+            follow_redirects=True,
+        )
+        self.assertEqual(category_response.status_code, 200)
+        self.assertIsNotNone(Category.query.filter_by(name="Mobile").first())
+
+        product_response = self.client.post(
+            "/products",
+            data={
+                "name": "Android Phone",
+                "sku": "SKU-PHONE-1",
+                "category": "Mobile",
+                "unit_price": "900",
+                "stock_quantity": "4",
+                "reorder_level": "1",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(product_response.status_code, 200)
+        product = Product.query.filter_by(sku="SKU-PHONE-1").first()
+        self.assertIsNotNone(product)
+        self.assertEqual(product.category, "Mobile")
 
     def test_cashier_cannot_add_product(self):
         self.login("cashier", "cashier123")

@@ -6,6 +6,8 @@ An end-to-end inventory management + billing web application built with **Flask*
 
 - Role-based login (Admin and Cashier)
 - Product management (add, search, update, delete)
+- Category management (add/view categories)
+- Product add form uses category dropdown selection
 - Stock management with movement tracking:
   - Stock IN
   - Stock OUT

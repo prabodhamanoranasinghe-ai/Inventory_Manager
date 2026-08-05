@@ -26,6 +26,7 @@
             <a class="nav-link" href="{{ url_for('new_invoice') }}">Generate Bill</a>
             <a class="nav-link" href="{{ url_for('invoices') }}">Invoices</a>
             {% if is_admin %}
+              <a class="nav-link" href="{{ url_for('categories') }}">Categories</a>
               <a class="nav-link" href="{{ url_for('suppliers') }}">Suppliers</a>
               <a class="nav-link" href="{{ url_for('purchase_orders') }}">Purchase Orders</a>
               <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>

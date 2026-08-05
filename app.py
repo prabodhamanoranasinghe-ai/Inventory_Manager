@@ -41,6 +41,13 @@ DEFAULT_SETTINGS = {
     "currency_code": "USD",
     "receipt_width_mm": "80",
 }
+DEFAULT_CATEGORY_NAMES = [
+    "General",
+    "Electronics",
+    "Accessories",
+    "Grocery",
+    "Stationery",
+]
 
 
 class TimestampMixin:
@@ -67,6 +74,14 @@ class User(TimestampMixin, db.Model):
 
     def check_password(self, plain_password: str) -> bool:
         return check_password_hash(self.password_hash, plain_password)
+
+
+class Category(TimestampMixin, db.Model):
+    __tablename__ = "categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    description = db.Column(db.String(255), nullable=True)
 
 
 class Product(TimestampMixin, db.Model):
@@ -384,6 +399,16 @@ def seed_default_settings() -> None:
     db.session.commit()
 
 
+def seed_default_categories() -> None:
+    existing_names = {
+        row.name.lower().strip() for row in Category.query.with_entities(Category.name).all()
+    }
+    for category_name in DEFAULT_CATEGORY_NAMES:
+        if category_name.lower() not in existing_names:
+            db.session.add(Category(name=category_name))
+    db.session.commit()
+
+
 def apply_purchase_order_stock(po: PurchaseOrder) -> None:
     for item in po.items:
         item.product.stock_quantity += item.quantity
@@ -507,6 +532,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         ensure_legacy_schema()
         seed_default_users()
         seed_default_settings()
+        seed_default_categories()
 
     @app.before_request
     def authenticate_user():
@@ -651,14 +677,43 @@ def create_app(test_config: dict | None = None) -> Flask:
                 )
             )
 
-        return render_template("products.html", products=query.all(), keyword=keyword)
+        category_rows = Category.query.order_by(Category.name.asc()).all()
+        return render_template(
+            "products.html",
+            products=query.all(),
+            keyword=keyword,
+            categories=category_rows,
+        )
+
+    @app.route("/categories", methods=["GET", "POST"])
+    @roles_required(ROLE_ADMIN)
+    def categories():
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            description = request.form.get("description", "").strip() or None
+            if not name:
+                flash("Category name is required.", "danger")
+                return redirect(url_for("categories"))
+
+            existing = Category.query.filter(func.lower(Category.name) == name.lower()).first()
+            if existing:
+                flash("Category already exists.", "warning")
+                return redirect(url_for("categories"))
+
+            db.session.add(Category(name=name, description=description))
+            db.session.commit()
+            flash("Category added.", "success")
+            return redirect(url_for("categories"))
+
+        category_rows = Category.query.order_by(Category.name.asc()).all()
+        return render_template("categories.html", categories=category_rows)
 
     @app.post("/products")
     @roles_required(ROLE_ADMIN)
     def add_product():
         name = request.form.get("name", "").strip()
         sku = request.form.get("sku", "").strip()
-        category = request.form.get("category", "").strip() or "General"
+        category = request.form.get("category", "").strip()
         if not name or not sku:
             flash("Name and SKU are required.", "danger")
             return redirect(url_for("products"))
@@ -668,10 +723,21 @@ def create_app(test_config: dict | None = None) -> Flask:
             flash("SKU already exists. Use a unique SKU.", "danger")
             return redirect(url_for("products"))
 
+        if not category:
+            flash("Please select a category.", "danger")
+            return redirect(url_for("products"))
+
+        selected_category = Category.query.filter(
+            func.lower(Category.name) == category.lower()
+        ).first()
+        if not selected_category:
+            flash("Selected category is invalid.", "danger")
+            return redirect(url_for("products"))
+
         product = Product(
             name=name,
             sku=sku,
-            category=category,
+            category=selected_category.name,
             unit_price=to_decimal(request.form.get("unit_price", "0")),
             stock_quantity=max(to_int(request.form.get("stock_quantity", "0")), 0),
             reorder_level=max(to_int(request.form.get("reorder_level", "5")), 0),
@@ -685,8 +751,17 @@ def create_app(test_config: dict | None = None) -> Flask:
     @roles_required(ROLE_ADMIN)
     def update_product(product_id: int):
         product = db.get_or_404(Product, product_id)
+        selected_category = request.form.get("category", "").strip()
+        if selected_category:
+            category_row = Category.query.filter(
+                func.lower(Category.name) == selected_category.lower()
+            ).first()
+            if not category_row:
+                flash("Selected category is invalid.", "danger")
+                return redirect(url_for("products"))
+            product.category = category_row.name
+
         product.name = request.form.get("name", "").strip() or product.name
-        product.category = request.form.get("category", "").strip() or product.category
         product.unit_price = to_decimal(request.form.get("unit_price", str(product.unit_price)))
         product.reorder_level = max(
             to_int(request.form.get("reorder_level", str(product.reorder_level))),
