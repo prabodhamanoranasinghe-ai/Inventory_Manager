@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
@@ -13,9 +13,12 @@ db = SQLAlchemy()
 
 
 class TimestampMixin:
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: utc_now(), nullable=False)
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        db.DateTime,
+        default=lambda: utc_now(),
+        onupdate=lambda: utc_now(),
+        nullable=False,
     )
 
 
@@ -112,9 +115,13 @@ def format_currency(value: Decimal | int | float | None) -> str:
     return f"{Decimal(value):,.2f}"
 
 
+def utc_now() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 def generate_invoice_number() -> str:
     next_id = (db.session.query(func.max(Invoice.id)).scalar() or 0) + 1
-    return f"INV-{datetime.utcnow():%Y%m%d}-{next_id:04d}"
+    return f"INV-{utc_now():%Y%m%d}-{next_id:04d}"
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -169,7 +176,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             .all()
         )
 
-        sales_window_start = datetime.utcnow() - timedelta(days=6)
+        current_time = utc_now()
+        sales_window_start = current_time - timedelta(days=6)
         sales_rows = (
             db.session.query(
                 func.date(Invoice.created_at).label("sold_on"),
@@ -183,7 +191,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         chart_labels: list[str] = []
         chart_values: list[float] = []
         for offset in range(7):
-            day = (datetime.utcnow() - timedelta(days=6 - offset)).date()
+            day = (current_time - timedelta(days=6 - offset)).date()
             day_key = day.strftime("%Y-%m-%d")
             chart_labels.append(day.strftime("%d %b"))
             chart_values.append(sales_map.get(day_key, 0.0))
@@ -245,7 +253,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.post("/products/<int:product_id>/update")
     def update_product(product_id: int):
-        product = Product.query.get_or_404(product_id)
+        product = db.get_or_404(Product, product_id)
         product.name = request.form.get("name", "").strip() or product.name
         product.category = request.form.get("category", "").strip() or product.category
         product.unit_price = to_decimal(request.form.get("unit_price", str(product.unit_price)))
@@ -259,7 +267,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.post("/products/<int:product_id>/delete")
     def delete_product(product_id: int):
-        product = Product.query.get_or_404(product_id)
+        product = db.get_or_404(Product, product_id)
         if product.invoice_items:
             flash("Product cannot be deleted because it is used in invoices.", "warning")
             return redirect(url_for("products"))
@@ -271,7 +279,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.post("/stock-movements")
     def record_stock_movement():
-        product = Product.query.get_or_404(to_int(request.form.get("product_id")))
+        product = db.get_or_404(Product, to_int(request.form.get("product_id")))
         movement_type = request.form.get("movement_type", "IN").upper()
         quantity = max(to_int(request.form.get("quantity", "0")), 0)
         notes = request.form.get("notes", "").strip()
@@ -324,7 +332,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         customer = None
         existing_customer_id = to_int(request.form.get("customer_id"), 0)
         if existing_customer_id:
-            customer = Customer.query.get(existing_customer_id)
+            customer = db.session.get(Customer, existing_customer_id)
         else:
             customer_name = request.form.get("customer_name", "").strip()
             if customer_name:
@@ -352,7 +360,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
         lines: list[dict] = []
         for product_id, quantity in grouped_lines.items():
-            product = Product.query.get(product_id)
+            product = db.session.get(Product, product_id)
             if not product:
                 continue
             if product.stock_quantity < quantity:
@@ -451,7 +459,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.route("/invoices/<int:invoice_id>")
     def invoice_detail(invoice_id: int):
-        invoice = Invoice.query.get_or_404(invoice_id)
+        invoice = db.get_or_404(Invoice, invoice_id)
         return render_template("invoice_detail.html", invoice=invoice)
 
     @app.get("/reports/sales.csv")

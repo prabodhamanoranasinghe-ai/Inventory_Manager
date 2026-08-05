@@ -67,7 +67,7 @@ class InventoryAppTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Invoice.query.count(), 1)
-        refreshed_product = Product.query.get(product.id)
+        refreshed_product = db.session.get(Product, product.id)
         self.assertEqual(refreshed_product.stock_quantity, 8)
 
 
