@@ -13,11 +13,21 @@
               <select class="form-select" name="customer_id">
                 <option value="">Walk-in / New Customer</option>
                 {% for customer in customers %}
-                  <option value="{{ customer.id }}">{{ customer.name }}{% if customer.phone %} - {{ customer.phone }}{% endif %}</option>
+                  <option value="{{ customer.id }}">
+                    {% if customer.customer_code %}[{{ customer.customer_code }}] {% endif %}
+                    {{ customer.name }}{% if customer.phone %} - {{ customer.phone }}{% endif %}
+                  </option>
                 {% endfor %}
               </select>
+              <div class="form-text">
+                Need to register new customer with ID and telephone?
+                <a href="{{ url_for('customers') }}">Open customer register</a>
+              </div>
             </div>
             <p class="small text-muted mb-1">Or enter new customer details:</p>
+            <div class="mb-2">
+              <input class="form-control" name="customer_code" placeholder="Customer ID (optional for quick bill)" />
+            </div>
             <div class="mb-2">
               <input class="form-control" name="customer_name" placeholder="Customer Name" />
             </div>
@@ -80,6 +90,13 @@
           <h2 class="h5 m-0">Line Items</h2>
           <button class="btn btn-sm btn-outline-primary" id="addLineBtn" type="button">+ Add Item</button>
         </div>
+        <div class="mb-2">
+          <input
+            id="billProductSearch"
+            class="form-control"
+            placeholder="Search product before selecting (name or SKU)"
+          />
+        </div>
 
         <div class="table-responsive">
           <table class="table" id="lineItemsTable">
@@ -128,9 +145,9 @@
     <div class="card">
       <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-          <div><strong>Subtotal:</strong> $ <span id="subtotalValue">0.00</span></div>
-          <div><strong>Tax:</strong> $ <span id="taxValue">0.00</span></div>
-          <div><strong>Grand Total:</strong> $ <span id="grandTotalValue">0.00</span></div>
+          <div><strong>Subtotal:</strong> {{ currency_symbol }} <span id="subtotalValue">0.00</span></div>
+          <div><strong>Tax:</strong> {{ currency_symbol }} <span id="taxValue">0.00</span></div>
+          <div><strong>Grand Total:</strong> {{ currency_symbol }} <span id="grandTotalValue">0.00</span></div>
         </div>
         <button class="btn btn-success btn-lg" type="submit">Generate Bill</button>
       </div>

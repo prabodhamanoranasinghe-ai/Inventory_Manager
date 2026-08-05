@@ -4,6 +4,9 @@
     <h1 class="h3 m-0">Invoice {{ invoice.invoice_number }}</h1>
     <div class="d-flex gap-2">
       <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">Back</a>
+      <a href="{{ url_for('invoice_receipt', invoice_id=invoice.id) }}" class="btn btn-outline-primary">
+        Pocket Print
+      </a>
       <a href="{{ url_for('download_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-outline-dark">
         Download PDF
       </a>
@@ -15,6 +18,7 @@
     <div class="card-body">
       <div class="row mb-4">
         <div class="col-md-6">
+          <h2 class="h5">{{ shop_name }}</h2>
           <h2 class="h5">Invoice Details</h2>
           <div><strong>Number:</strong> {{ invoice.invoice_number }}</div>
           <div><strong>Date:</strong> {{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
@@ -25,6 +29,7 @@
         <div class="col-md-6">
           <h2 class="h5">Customer</h2>
           {% if invoice.customer %}
+            <div><strong>Customer ID:</strong> {{ invoice.customer.customer_code or "-" }}</div>
             <div><strong>Name:</strong> {{ invoice.customer.name }}</div>
             <div><strong>Email:</strong> {{ invoice.customer.email or "-" }}</div>
             <div><strong>Phone:</strong> {{ invoice.customer.phone or "-" }}</div>
@@ -48,8 +53,8 @@
             <tr>
               <td>{{ item.product.name }}</td>
               <td>{{ item.quantity }}</td>
-              <td>$ {{ item.unit_price|money }}</td>
-              <td>$ {{ item.line_total|money }}</td>
+              <td>{{ currency_symbol }} {{ item.unit_price|money }}</td>
+              <td>{{ currency_symbol }} {{ item.line_total|money }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -60,19 +65,19 @@
           <table class="table table-sm">
             <tr>
               <th>Subtotal</th>
-              <td class="text-end">$ {{ invoice.subtotal|money }}</td>
+              <td class="text-end">{{ currency_symbol }} {{ invoice.subtotal|money }}</td>
             </tr>
             <tr>
               <th>{{ invoice.tax_type }} Tax ({{ invoice.tax_rate }}%)</th>
-              <td class="text-end">$ {{ invoice.tax_amount|money }}</td>
+              <td class="text-end">{{ currency_symbol }} {{ invoice.tax_amount|money }}</td>
             </tr>
             <tr>
               <th>Discount</th>
-              <td class="text-end">$ {{ invoice.discount|money }}</td>
+              <td class="text-end">{{ currency_symbol }} {{ invoice.discount|money }}</td>
             </tr>
             <tr>
               <th class="h5">Grand Total</th>
-              <td class="text-end h5">$ {{ invoice.grand_total|money }}</td>
+              <td class="text-end h5">{{ currency_symbol }} {{ invoice.grand_total|money }}</td>
             </tr>
           </table>
         </div>

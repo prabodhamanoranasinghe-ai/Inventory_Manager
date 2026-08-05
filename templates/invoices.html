@@ -23,7 +23,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Customer</label>
-          <input class="form-control" name="customer" placeholder="Name or email" value="{{ customer_query }}" />
+          <input class="form-control" name="customer" placeholder="Name / email / ID / phone" value="{{ customer_query }}" />
         </div>
         <div class="col-md-2">
           <label class="form-label">Status</label>
@@ -79,7 +79,7 @@
                       {{ invoice.status }}
                     </span>
                   </td>
-                  <td>$ {{ invoice.grand_total|money }}</td>
+                  <td>{{ currency_symbol }} {{ invoice.grand_total|money }}</td>
                   <td>
                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('invoice_detail', invoice_id=invoice.id) }}">
                       View / Print

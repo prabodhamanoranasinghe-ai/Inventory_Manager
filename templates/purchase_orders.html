@@ -33,7 +33,7 @@
                       {{ order.status }}
                     </span>
                   </td>
-                  <td>$ {{ order.grand_total|money }}</td>
+                  <td>{{ currency_symbol }} {{ order.grand_total|money }}</td>
                   <td>
                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('purchase_order_detail', po_id=order.id) }}">
                       View

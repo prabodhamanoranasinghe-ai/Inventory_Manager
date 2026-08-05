@@ -41,8 +41,8 @@
             <tr>
               <td>{{ item.product.name }}</td>
               <td>{{ item.quantity }}</td>
-              <td>$ {{ item.unit_cost|money }}</td>
-              <td>$ {{ item.line_total|money }}</td>
+              <td>{{ currency_symbol }} {{ item.unit_cost|money }}</td>
+              <td>{{ currency_symbol }} {{ item.line_total|money }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -53,15 +53,15 @@
           <table class="table table-sm">
             <tr>
               <th>Subtotal</th>
-              <td class="text-end">$ {{ po.subtotal|money }}</td>
+              <td class="text-end">{{ currency_symbol }} {{ po.subtotal|money }}</td>
             </tr>
             <tr>
               <th>Tax ({{ po.tax_rate }}%)</th>
-              <td class="text-end">$ {{ po.tax_amount|money }}</td>
+              <td class="text-end">{{ currency_symbol }} {{ po.tax_amount|money }}</td>
             </tr>
             <tr>
               <th class="h5">Grand Total</th>
-              <td class="text-end h5">$ {{ po.grand_total|money }}</td>
+              <td class="text-end h5">{{ currency_symbol }} {{ po.grand_total|money }}</td>
             </tr>
           </table>
         </div>

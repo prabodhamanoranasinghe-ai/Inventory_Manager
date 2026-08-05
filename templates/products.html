@@ -77,7 +77,7 @@
                     <div class="text-muted small">{{ product.sku }}</div>
                   </td>
                   <td>{{ product.category }}</td>
-                  <td>$ {{ product.unit_price|money }}</td>
+                  <td>{{ currency_symbol }} {{ product.unit_price|money }}</td>
                   <td>
                     {% if product.stock_quantity <= product.reorder_level %}
                       <span class="badge bg-danger">{{ product.stock_quantity }}</span>

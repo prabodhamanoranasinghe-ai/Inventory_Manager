@@ -33,6 +33,14 @@ ROLE_ADMIN = "admin"
 ROLE_CASHIER = "cashier"
 VALID_ROLES = {ROLE_ADMIN, ROLE_CASHIER}
 VALID_TAX_TYPES = {"GST", "VAT"}
+DEFAULT_SETTINGS = {
+    "shop_name": "Inventory Manager",
+    "shop_address": "Main Street",
+    "shop_phone": "0000000000",
+    "currency_symbol": "$",
+    "currency_code": "USD",
+    "receipt_width_mm": "80",
+}
 
 
 class TimestampMixin:
@@ -90,10 +98,19 @@ class Supplier(TimestampMixin, db.Model):
     purchase_orders = db.relationship("PurchaseOrder", back_populates="supplier")
 
 
+class AppSetting(TimestampMixin, db.Model):
+    __tablename__ = "app_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    setting_value = db.Column(db.String(255), nullable=False)
+
+
 class Customer(TimestampMixin, db.Model):
     __tablename__ = "customers"
 
     id = db.Column(db.Integer, primary_key=True)
+    customer_code = db.Column(db.String(40), nullable=True, unique=True, index=True)
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
@@ -256,6 +273,30 @@ def generate_purchase_order_number() -> str:
     return f"PO-{utc_now():%Y%m%d}-{next_id:04d}"
 
 
+def get_setting_value(setting_key: str, default_value: str = "") -> str:
+    row = AppSetting.query.filter_by(setting_key=setting_key).first()
+    if row:
+        return row.setting_value
+    return default_value
+
+
+def set_setting_value(setting_key: str, setting_value: str) -> None:
+    row = AppSetting.query.filter_by(setting_key=setting_key).first()
+    if not row:
+        row = AppSetting(setting_key=setting_key, setting_value=setting_value)
+        db.session.add(row)
+    else:
+        row.setting_value = setting_value
+
+
+def get_all_settings() -> dict[str, str]:
+    settings = dict(DEFAULT_SETTINGS)
+    rows = AppSetting.query.all()
+    for row in rows:
+        settings[row.setting_key] = row.setting_value
+    return settings
+
+
 def get_current_user() -> User | None:
     user_id = session.get("user_id")
     if not user_id:
@@ -311,6 +352,16 @@ def ensure_legacy_schema() -> None:
                 )
             )
 
+    if "customers" in tables:
+        customer_columns = {column["name"] for column in inspector.get_columns("customers")}
+        if "customer_code" not in customer_columns:
+            db.session.execute(text("ALTER TABLE customers ADD COLUMN customer_code VARCHAR(40)"))
+        db.session.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_customers_customer_code ON customers(customer_code)"
+            )
+        )
+
     db.session.commit()
 
 
@@ -323,6 +374,13 @@ def seed_default_users() -> None:
     cashier = User(full_name="Default Cashier", username="cashier", role=ROLE_CASHIER)
     cashier.set_password("cashier123")
     db.session.add_all([admin, cashier])
+    db.session.commit()
+
+
+def seed_default_settings() -> None:
+    for key, value in DEFAULT_SETTINGS.items():
+        if not AppSetting.query.filter_by(setting_key=key).first():
+            db.session.add(AppSetting(setting_key=key, setting_value=value))
     db.session.commit()
 
 
@@ -340,17 +398,25 @@ def apply_purchase_order_stock(po: PurchaseOrder) -> None:
     po.stock_applied = True
 
 
-def invoice_pdf_content(invoice: Invoice) -> BytesIO:
+def invoice_pdf_content(invoice: Invoice, settings: dict[str, str]) -> BytesIO:
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
+    shop_name = settings.get("shop_name", "Inventory Manager")
+    shop_address = settings.get("shop_address", "-")
+    shop_phone = settings.get("shop_phone", "-")
+    currency_symbol = settings.get("currency_symbol", "$")
 
     y = height - 50
     pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(40, y, "Inventory Manager - Tax Invoice")
+    pdf.drawString(40, y, f"{shop_name} - Tax Invoice")
     y -= 25
 
     pdf.setFont("Helvetica", 10)
+    pdf.drawString(40, y, f"Address: {shop_address}")
+    y -= 14
+    pdf.drawString(40, y, f"Phone: {shop_phone}")
+    y -= 14
     pdf.drawString(40, y, f"Invoice Number: {invoice.invoice_number}")
     pdf.drawString(320, y, f"Date: {invoice.created_at.strftime('%Y-%m-%d %H:%M')}")
     y -= 16
@@ -361,6 +427,7 @@ def invoice_pdf_content(invoice: Invoice) -> BytesIO:
     y -= 26
 
     customer_name = invoice.customer.name if invoice.customer else "Walk-in Customer"
+    customer_code = invoice.customer.customer_code if invoice.customer else "-"
     customer_email = invoice.customer.email if invoice.customer else "-"
     customer_phone = invoice.customer.phone if invoice.customer else "-"
     pdf.setFont("Helvetica-Bold", 11)
@@ -368,6 +435,8 @@ def invoice_pdf_content(invoice: Invoice) -> BytesIO:
     y -= 16
     pdf.setFont("Helvetica", 10)
     pdf.drawString(40, y, f"Name: {customer_name}")
+    y -= 14
+    pdf.drawString(40, y, f"Customer ID: {customer_code or '-'}")
     y -= 14
     pdf.drawString(40, y, f"Email: {customer_email or '-'}")
     y -= 14
@@ -391,25 +460,27 @@ def invoice_pdf_content(invoice: Invoice) -> BytesIO:
             pdf.setFont("Helvetica", 10)
         pdf.drawString(40, y, item.product.name[:40])
         pdf.drawString(300, y, str(item.quantity))
-        pdf.drawString(360, y, f"{Decimal(item.unit_price):,.2f}")
-        pdf.drawRightString(width - 40, y, f"{Decimal(item.line_total):,.2f}")
+        pdf.drawString(360, y, f"{currency_symbol} {Decimal(item.unit_price):,.2f}")
+        pdf.drawRightString(width - 40, y, f"{currency_symbol} {Decimal(item.line_total):,.2f}")
         y -= 14
 
     y -= 16
     pdf.line(300, y, width - 40, y)
     y -= 16
     pdf.drawString(320, y, "Subtotal:")
-    pdf.drawRightString(width - 40, y, f"{Decimal(invoice.subtotal):,.2f}")
+    pdf.drawRightString(width - 40, y, f"{currency_symbol} {Decimal(invoice.subtotal):,.2f}")
     y -= 14
     pdf.drawString(320, y, f"{invoice.tax_type} Tax ({invoice.tax_rate}%):")
-    pdf.drawRightString(width - 40, y, f"{Decimal(invoice.tax_amount):,.2f}")
+    pdf.drawRightString(width - 40, y, f"{currency_symbol} {Decimal(invoice.tax_amount):,.2f}")
     y -= 14
     pdf.drawString(320, y, "Discount:")
-    pdf.drawRightString(width - 40, y, f"{Decimal(invoice.discount):,.2f}")
+    pdf.drawRightString(width - 40, y, f"{currency_symbol} {Decimal(invoice.discount):,.2f}")
     y -= 16
     pdf.setFont("Helvetica-Bold", 11)
     pdf.drawString(320, y, "Grand Total:")
-    pdf.drawRightString(width - 40, y, f"{Decimal(invoice.grand_total):,.2f}")
+    pdf.drawRightString(
+        width - 40, y, f"{currency_symbol} {Decimal(invoice.grand_total):,.2f}"
+    )
 
     pdf.showPage()
     pdf.save()
@@ -435,6 +506,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         db.create_all()
         ensure_legacy_schema()
         seed_default_users()
+        seed_default_settings()
 
     @app.before_request
     def authenticate_user():
@@ -450,9 +522,20 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.context_processor
     def inject_template_context():
+        settings = get_all_settings()
         return {
             "current_user": getattr(g, "current_user", None),
             "is_admin": bool(getattr(g, "current_user", None) and g.current_user.role == ROLE_ADMIN),
+            "shop_name": settings.get("shop_name", DEFAULT_SETTINGS["shop_name"]),
+            "shop_address": settings.get("shop_address", DEFAULT_SETTINGS["shop_address"]),
+            "shop_phone": settings.get("shop_phone", DEFAULT_SETTINGS["shop_phone"]),
+            "currency_symbol": settings.get(
+                "currency_symbol", DEFAULT_SETTINGS["currency_symbol"]
+            ),
+            "currency_code": settings.get("currency_code", DEFAULT_SETTINGS["currency_code"]),
+            "receipt_width_mm": settings.get(
+                "receipt_width_mm", DEFAULT_SETTINGS["receipt_width_mm"]
+            ),
         }
 
     @app.errorhandler(403)
@@ -665,6 +748,37 @@ def create_app(test_config: dict | None = None) -> Flask:
         flash(f"Stock updated for {product.name}.", "success")
         return redirect(url_for("products"))
 
+    @app.route("/customers", methods=["GET", "POST"])
+    @roles_required(ROLE_ADMIN, ROLE_CASHIER)
+    def customers():
+        if request.method == "POST":
+            customer_code = request.form.get("customer_code", "").strip().upper()
+            name = request.form.get("name", "").strip()
+            phone = request.form.get("phone", "").strip()
+            email = request.form.get("email", "").strip() or None
+
+            if not customer_code or not name or not phone:
+                flash("Customer ID, name, and telephone are required.", "danger")
+                return redirect(url_for("customers"))
+
+            if Customer.query.filter(func.lower(Customer.customer_code) == customer_code.lower()).first():
+                flash("Customer ID already exists.", "danger")
+                return redirect(url_for("customers"))
+
+            customer = Customer(
+                customer_code=customer_code,
+                name=name,
+                phone=phone,
+                email=email,
+            )
+            db.session.add(customer)
+            db.session.commit()
+            flash(f"Customer {name} registered.", "success")
+            return redirect(url_for("customers"))
+
+        customer_rows = Customer.query.order_by(Customer.created_at.desc()).all()
+        return render_template("customers.html", customers=customer_rows)
+
     @app.route("/billing/new")
     @roles_required(ROLE_ADMIN, ROLE_CASHIER)
     def new_invoice():
@@ -689,7 +803,14 @@ def create_app(test_config: dict | None = None) -> Flask:
         else:
             customer_name = request.form.get("customer_name", "").strip()
             if customer_name:
+                customer_code = request.form.get("customer_code", "").strip().upper() or None
+                if customer_code and Customer.query.filter(
+                    func.lower(Customer.customer_code) == customer_code.lower()
+                ).first():
+                    flash("Customer ID already exists. Choose another ID.", "danger")
+                    return redirect(url_for("new_invoice"))
                 customer = Customer(
+                    customer_code=customer_code,
                     name=customer_name,
                     email=request.form.get("customer_email", "").strip() or None,
                     phone=request.form.get("customer_phone", "").strip() or None,
@@ -803,7 +924,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         if customer_query:
             like = f"%{customer_query}%"
             query = query.outerjoin(Customer).filter(
-                or_(Customer.name.ilike(like), Customer.email.ilike(like))
+                or_(
+                    Customer.name.ilike(like),
+                    Customer.email.ilike(like),
+                    Customer.customer_code.ilike(like),
+                    Customer.phone.ilike(like),
+                )
             )
         if status:
             query = query.filter(Invoice.status == status)
@@ -826,11 +952,17 @@ def create_app(test_config: dict | None = None) -> Flask:
         invoice = db.get_or_404(Invoice, invoice_id)
         return render_template("invoice_detail.html", invoice=invoice)
 
+    @app.route("/invoices/<int:invoice_id>/receipt")
+    @roles_required(ROLE_ADMIN, ROLE_CASHIER)
+    def invoice_receipt(invoice_id: int):
+        invoice = db.get_or_404(Invoice, invoice_id)
+        return render_template("invoice_receipt.html", invoice=invoice)
+
     @app.get("/invoices/<int:invoice_id>/pdf")
     @roles_required(ROLE_ADMIN, ROLE_CASHIER)
     def download_invoice_pdf(invoice_id: int):
         invoice = db.get_or_404(Invoice, invoice_id)
-        pdf_buffer = invoice_pdf_content(invoice)
+        pdf_buffer = invoice_pdf_content(invoice, get_all_settings())
         file_name = f"{invoice.invoice_number.replace('/', '-')}.pdf"
         return send_file(
             pdf_buffer,
@@ -838,6 +970,40 @@ def create_app(test_config: dict | None = None) -> Flask:
             as_attachment=True,
             download_name=file_name,
         )
+
+    @app.route("/settings", methods=["GET", "POST"])
+    @roles_required(ROLE_ADMIN)
+    def settings():
+        if request.method == "POST":
+            shop_name = request.form.get("shop_name", "").strip() or DEFAULT_SETTINGS["shop_name"]
+            shop_address = request.form.get("shop_address", "").strip() or DEFAULT_SETTINGS["shop_address"]
+            shop_phone = request.form.get("shop_phone", "").strip() or DEFAULT_SETTINGS["shop_phone"]
+            currency_symbol = (
+                request.form.get("currency_symbol", "").strip()
+                or DEFAULT_SETTINGS["currency_symbol"]
+            )
+            currency_code = (
+                request.form.get("currency_code", "").strip().upper()
+                or DEFAULT_SETTINGS["currency_code"]
+            )
+            receipt_width_mm = request.form.get("receipt_width_mm", "").strip() or DEFAULT_SETTINGS[
+                "receipt_width_mm"
+            ]
+            if to_int(receipt_width_mm, 0) <= 0:
+                flash("Receipt width must be a positive number in mm.", "danger")
+                return redirect(url_for("settings"))
+
+            set_setting_value("shop_name", shop_name)
+            set_setting_value("shop_address", shop_address)
+            set_setting_value("shop_phone", shop_phone)
+            set_setting_value("currency_symbol", currency_symbol)
+            set_setting_value("currency_code", currency_code)
+            set_setting_value("receipt_width_mm", receipt_width_mm)
+            db.session.commit()
+            flash("Settings updated successfully.", "success")
+            return redirect(url_for("settings"))
+
+        return render_template("settings.html", settings=get_all_settings())
 
     @app.route("/suppliers", methods=["GET", "POST"])
     @roles_required(ROLE_ADMIN)

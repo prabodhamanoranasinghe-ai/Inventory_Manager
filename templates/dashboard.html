@@ -26,7 +26,7 @@
       <div class="card metric-card">
         <div class="card-body">
           <h2 class="h6 text-muted">Inventory Value</h2>
-          <p class="display-6 m-0">$ {{ inventory_value|money }}</p>
+          <p class="display-6 m-0">{{ currency_symbol }} {{ inventory_value|money }}</p>
         </div>
       </div>
     </div>
@@ -34,7 +34,7 @@
       <div class="card metric-card">
         <div class="card-body">
           <h2 class="h6 text-muted">Sales This Month</h2>
-          <p class="display-6 m-0">$ {{ monthly_sales|money }}</p>
+          <p class="display-6 m-0">{{ currency_symbol }} {{ monthly_sales|money }}</p>
         </div>
       </div>
     </div>
@@ -121,7 +121,7 @@
                   <tr>
                     <td>{{ invoice.invoice_number }}</td>
                     <td>{{ invoice.customer.name if invoice.customer else "Walk-in" }}</td>
-                    <td>$ {{ invoice.grand_total|money }}</td>
+                    <td>{{ currency_symbol }} {{ invoice.grand_total|money }}</td>
                     <td>
                       <a href="{{ url_for('invoice_detail', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary">
                         View

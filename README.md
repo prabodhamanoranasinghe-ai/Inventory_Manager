@@ -13,11 +13,12 @@ An end-to-end inventory management + billing web application built with **Flask*
 - Low-stock alerts based on reorder level
 - Bill generation with:
   - Multiple line items
+  - Product search before selection
   - GST or VAT selection
   - Tax rate
   - Discount
   - Payment method
-- Printable invoice page
+- Printable invoice page + pocket receipt print view
 
 ## Advanced Features
 
@@ -32,8 +33,13 @@ An end-to-end inventory management + billing web application built with **Flask*
 - GST/VAT financial-year compliant invoice numbering:
   - Example: `GST/2026-27/00001`
 - Invoice PDF download
+- Customer register with customer ID + telephone number
 - Supplier management
 - Purchase order management with stock receiving workflow
+- Common settings page for:
+  - Shop name/address/phone
+  - Currency symbol and code
+  - Pocket receipt printer width
 - Metrics API endpoint (`/api/metrics`)
 
 ## Tech Stack

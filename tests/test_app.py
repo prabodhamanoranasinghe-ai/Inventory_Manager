@@ -1,7 +1,17 @@
 import unittest
 from decimal import Decimal
 
-from app import Invoice, Product, PurchaseOrder, Supplier, create_app, db, financial_year_label
+from app import (
+    AppSetting,
+    Customer,
+    Invoice,
+    Product,
+    PurchaseOrder,
+    Supplier,
+    create_app,
+    db,
+    financial_year_label,
+)
 
 
 class InventoryAppTestCase(unittest.TestCase):
@@ -168,6 +178,78 @@ class InventoryAppTestCase(unittest.TestCase):
         self.assertEqual(PurchaseOrder.query.count(), 1)
         refreshed_product = db.session.get(Product, product.id)
         self.assertEqual(refreshed_product.stock_quantity, 6)
+
+    def test_customer_register_with_id_and_telephone(self):
+        self.login("cashier", "cashier123")
+        response = self.client.post(
+            "/customers",
+            data={
+                "customer_code": "CUST-100",
+                "name": "John Doe",
+                "phone": "0771234567",
+                "email": "john@example.com",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Customer.query.count(), 1)
+        customer = Customer.query.first()
+        self.assertEqual(customer.customer_code, "CUST-100")
+        self.assertEqual(customer.phone, "0771234567")
+
+    def test_settings_can_change_shop_name_and_currency(self):
+        self.login("admin", "admin123")
+        response = self.client.post(
+            "/settings",
+            data={
+                "shop_name": "My Test Shop",
+                "shop_address": "42 High Street",
+                "shop_phone": "0119999999",
+                "currency_symbol": "Rs.",
+                "currency_code": "LKR",
+                "receipt_width_mm": "58",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        symbol_setting = AppSetting.query.filter_by(setting_key="currency_symbol").first()
+        name_setting = AppSetting.query.filter_by(setting_key="shop_name").first()
+        self.assertEqual(symbol_setting.setting_value, "Rs.")
+        self.assertEqual(name_setting.setting_value, "My Test Shop")
+
+    def test_pocket_receipt_view_is_available(self):
+        product = Product(
+            name="Receipt Item",
+            sku="SKU-RECEIPT-1",
+            category="Accessories",
+            unit_price=Decimal("40.00"),
+            stock_quantity=5,
+            reorder_level=1,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        self.login("cashier", "cashier123")
+        self.client.post(
+            "/billing/create",
+            data={
+                "customer_name": "Receipt Customer",
+                "customer_code": "CUST-R1",
+                "customer_phone": "0700000000",
+                "product_id[]": [str(product.id)],
+                "quantity[]": ["1"],
+                "tax_type": "GST",
+                "tax_rate": "0",
+                "discount": "0",
+                "payment_method": "cash",
+                "status": "PAID",
+            },
+            follow_redirects=True,
+        )
+        invoice = Invoice.query.first()
+        receipt_response = self.client.get(f"/invoices/{invoice.id}/receipt")
+        self.assertEqual(receipt_response.status_code, 200)
+        self.assertIn(b"Receipt", receipt_response.data)
 
 
 if __name__ == "__main__":

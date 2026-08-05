@@ -3,6 +3,10 @@ function toNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function getCurrencySymbol() {
+  return document.body?.dataset?.currencySymbol || "$";
+}
+
 function renderSalesChart() {
   const canvas = document.getElementById("salesChart");
   if (!canvas || typeof Chart === "undefined") return;
@@ -33,7 +37,7 @@ function renderSalesChart() {
         y: {
           ticks: {
             callback(value) {
-              return `$${value}`;
+              return `${getCurrencySymbol()}${value}`;
             },
           },
         },
@@ -106,12 +110,25 @@ function initializeInvoiceForm() {
 
   const tbody = document.querySelector("#lineItemsTable tbody");
   const addLineButton = document.getElementById("addLineBtn");
+  const productSearch = document.getElementById("billProductSearch");
   const taxRate = document.getElementById("taxRate");
   const discount = document.getElementById("discount");
+
+  function filterProductOptions() {
+    const term = (productSearch?.value || "").trim().toLowerCase();
+    tbody.querySelectorAll(".line-product").forEach((select) => {
+      select.querySelectorAll("option").forEach((option, index) => {
+        if (index === 0) return;
+        const text = option.textContent.toLowerCase();
+        option.hidden = term.length > 0 && !text.includes(term);
+      });
+    });
+  }
 
   tbody.querySelectorAll("tr.invoice-row").forEach(bindInvoiceRow);
   taxRate?.addEventListener("input", recalculateInvoice);
   discount?.addEventListener("input", recalculateInvoice);
+  productSearch?.addEventListener("input", filterProductOptions);
 
   addLineButton?.addEventListener("click", () => {
     const templateRow = tbody.querySelector("tr.invoice-row");
@@ -123,9 +140,11 @@ function initializeInvoiceForm() {
     cloned.querySelector(".line-total").value = "0.00";
     bindInvoiceRow(cloned);
     tbody.appendChild(cloned);
+    filterProductOptions();
     recalculateInvoice();
   });
 
+  filterProductOptions();
   recalculateInvoice();
 }
 
