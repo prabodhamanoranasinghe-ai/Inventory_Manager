@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="h3 mb-3">Common Settings</h1>
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('settings') }}" class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Shop Name</label>
+          <input class="form-control" name="shop_name" value="{{ settings.shop_name }}" required />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Shop Phone</label>
+          <input class="form-control" name="shop_phone" value="{{ settings.shop_phone }}" required />
+        </div>
+        <div class="col-12">
+          <label class="form-label">Shop Address</label>
+          <input class="form-control" name="shop_address" value="{{ settings.shop_address }}" required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Currency Symbol</label>
+          <input class="form-control" name="currency_symbol" value="{{ settings.currency_symbol }}" required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Currency Code</label>
+          <input class="form-control" name="currency_code" value="{{ settings.currency_code }}" required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Pocket Receipt Width (mm)</label>
+          <input
+            class="form-control"
+            type="number"
+            min="40"
+            max="120"
+            name="receipt_width_mm"
+            value="{{ settings.receipt_width_mm }}"
+            required
+          />
+        </div>
+        <div class="col-md-3 d-grid">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary">Save Settings</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

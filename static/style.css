@@ -1,0 +1,29 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.metric-card {
+  border: 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.table th {
+  white-space: nowrap;
+}
+
+@media print {
+  nav,
+  .btn,
+  .alert {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .print-card {
+    border: 0;
+    box-shadow: none;
+  }
+}

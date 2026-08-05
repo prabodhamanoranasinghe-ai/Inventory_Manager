@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Receipt {{ invoice.invoice_number }}</title>
+    <style>
+      :root {
+        --receipt-width: {{ receipt_width_mm }}mm;
+      }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        color: #000;
+      }
+      .receipt {
+        width: var(--receipt-width);
+        margin: 0 auto;
+        padding: 6px;
+      }
+      .text-center {
+        text-align: center;
+      }
+      .line {
+        border-top: 1px dashed #000;
+        margin: 6px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        vertical-align: top;
+        padding: 2px 0;
+      }
+      .right {
+        text-align: right;
+      }
+      @media print {
+        @page {
+          size: var(--receipt-width) auto;
+          margin: 2mm;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body onload="window.print()">
+    <div class="receipt">
+      <div class="text-center">
+        <div><strong>{{ shop_name }}</strong></div>
+        <div>{{ shop_address }}</div>
+        <div>{{ shop_phone }}</div>
+      </div>
+      <div class="line"></div>
+      <div>Invoice: {{ invoice.invoice_number }}</div>
+      <div>Date: {{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+      <div>Tax: {{ invoice.tax_type }} ({{ invoice.tax_rate }}%)</div>
+      <div>Payment: {{ invoice.payment_method|upper }}</div>
+      <div>Customer:
+        {% if invoice.customer %}
+          {{ invoice.customer.name }}
+          {% if invoice.customer.customer_code %} ({{ invoice.customer.customer_code }}){% endif %}
+        {% else %}
+          Walk-in
+        {% endif %}
+      </div>
+      <div class="line"></div>
+      <table>
+        <tbody>
+          {% for item in invoice.items %}
+            <tr>
+              <td colspan="2">{{ item.product.name }}</td>
+            </tr>
+            <tr>
+              <td>{{ item.quantity }} x {{ currency_symbol }} {{ item.unit_price|money }}</td>
+              <td class="right">{{ currency_symbol }} {{ item.line_total|money }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="line"></div>
+      <table>
+        <tr>
+          <td>Subtotal</td>
+          <td class="right">{{ currency_symbol }} {{ invoice.subtotal|money }}</td>
+        </tr>
+        <tr>
+          <td>{{ invoice.tax_type }} Tax</td>
+          <td class="right">{{ currency_symbol }} {{ invoice.tax_amount|money }}</td>
+        </tr>
+        <tr>
+          <td>Discount</td>
+          <td class="right">{{ currency_symbol }} {{ invoice.discount|money }}</td>
+        </tr>
+        <tr>
+          <td><strong>Total</strong></td>
+          <td class="right"><strong>{{ currency_symbol }} {{ invoice.grand_total|money }}</strong></td>
+        </tr>
+      </table>
+      <div class="line"></div>
+      <div class="text-center">Thank you! Visit again.</div>
+      <div class="text-center no-print" style="margin-top:8px">
+        <button onclick="window.print()">Print Again</button>
+      </div>
+    </div>
+  </body>
+</html>
