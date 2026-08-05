@@ -92,3 +92,27 @@ Change these credentials before production use.
 ```bash
 python -m unittest discover -s tests
 ```
+
+## Android App (Separate Client)
+
+An Android app client is included under `android-app/` in a separate branch.
+
+### Mobile Features
+- Login to the same backend
+- Quick navigation buttons for:
+  - Dashboard
+  - Products
+  - Customers
+  - Categories
+  - Billing
+  - Invoices
+  - Settings
+- Supports PDF/report downloads
+- Supports Android print action for bills/receipts
+
+### Run Android App
+1. Open `android-app/` in Android Studio
+2. Let Gradle sync
+3. In app settings, configure backend URL:
+   - Emulator default: `http://10.0.2.2:5000`
+4. Run on emulator/device
