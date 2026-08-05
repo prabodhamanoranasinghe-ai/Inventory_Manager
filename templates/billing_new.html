@@ -44,6 +44,14 @@
                 <input class="form-control" type="number" min="0" step="0.01" name="discount" id="discount" value="0" />
               </div>
               <div class="col-md-6">
+                <label class="form-label">Tax Type</label>
+                <select class="form-select" name="tax_type">
+                  {% for tax in tax_types %}
+                    <option value="{{ tax }}">{{ tax }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
                 <label class="form-label">Payment Method</label>
                 <select class="form-select" name="payment_method">
                   <option value="cash">Cash</option>

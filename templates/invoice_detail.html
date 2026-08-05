@@ -4,6 +4,9 @@
     <h1 class="h3 m-0">Invoice {{ invoice.invoice_number }}</h1>
     <div class="d-flex gap-2">
       <a href="{{ url_for('invoices') }}" class="btn btn-outline-secondary">Back</a>
+      <a href="{{ url_for('download_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-outline-dark">
+        Download PDF
+      </a>
       <button class="btn btn-primary" onclick="window.print()">Print Bill</button>
     </div>
   </div>
@@ -16,6 +19,7 @@
           <div><strong>Number:</strong> {{ invoice.invoice_number }}</div>
           <div><strong>Date:</strong> {{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
           <div><strong>Status:</strong> {{ invoice.status }}</div>
+          <div><strong>Tax Type:</strong> {{ invoice.tax_type }}</div>
           <div><strong>Payment Method:</strong> {{ invoice.payment_method|upper }}</div>
         </div>
         <div class="col-md-6">
@@ -59,7 +63,7 @@
               <td class="text-end">$ {{ invoice.subtotal|money }}</td>
             </tr>
             <tr>
-              <th>Tax ({{ invoice.tax_rate }}%)</th>
+              <th>{{ invoice.tax_type }} Tax ({{ invoice.tax_rate }}%)</th>
               <td class="text-end">$ {{ invoice.tax_amount|money }}</td>
             </tr>
             <tr>

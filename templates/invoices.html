@@ -34,7 +34,15 @@
             <option value="PARTIAL" {{ "selected" if status == "PARTIAL" else "" }}>PARTIAL</option>
           </select>
         </div>
-        <div class="col-md-1 d-grid align-items-end">
+        <div class="col-md-1">
+          <label class="form-label">Tax</label>
+          <select class="form-select" name="tax_type">
+            <option value="">All</option>
+            <option value="GST" {{ "selected" if tax_type == "GST" else "" }}>GST</option>
+            <option value="VAT" {{ "selected" if tax_type == "VAT" else "" }}>VAT</option>
+          </select>
+        </div>
+        <div class="col-md-12 d-grid">
           <button class="btn btn-primary mt-4">Apply</button>
         </div>
       </form>
@@ -51,6 +59,7 @@
                 <th>Invoice #</th>
                 <th>Date</th>
                 <th>Customer</th>
+                <th>Tax Type</th>
                 <th>Payment</th>
                 <th>Status</th>
                 <th>Total</th>
@@ -63,6 +72,7 @@
                   <td>{{ invoice.invoice_number }}</td>
                   <td>{{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
                   <td>{{ invoice.customer.name if invoice.customer else "Walk-in" }}</td>
+                  <td><span class="badge bg-info">{{ invoice.tax_type }}</span></td>
                   <td>{{ invoice.payment_method|upper }}</td>
                   <td>
                     <span class="badge bg-{{ 'success' if invoice.status == 'PAID' else 'warning' }}">

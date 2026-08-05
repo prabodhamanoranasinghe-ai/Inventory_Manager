@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 m-0">Purchase Order {{ po.po_number }}</h1>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('purchase_orders') }}" class="btn btn-outline-secondary">Back</a>
+      {% if not po.stock_applied %}
+        <form method="post" action="{{ url_for('mark_purchase_order_received', po_id=po.id) }}">
+          <button class="btn btn-primary">Mark Received & Update Stock</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <div><strong>Supplier:</strong> {{ po.supplier.name }}</div>
+          <div><strong>Status:</strong> {{ po.status }}</div>
+          <div><strong>Stock Applied:</strong> {{ "Yes" if po.stock_applied else "No" }}</div>
+        </div>
+        <div class="col-md-6">
+          <div><strong>Created:</strong> {{ po.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+          <div><strong>Expected Date:</strong> {{ po.expected_date.strftime("%Y-%m-%d") if po.expected_date else "-" }}</div>
+          <div><strong>Notes:</strong> {{ po.notes or "-" }}</div>
+        </div>
+      </div>
+
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Unit Cost</th>
+            <th>Line Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in po.items %}
+            <tr>
+              <td>{{ item.product.name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>$ {{ item.unit_cost|money }}</td>
+              <td>$ {{ item.line_total|money }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="row justify-content-end">
+        <div class="col-md-4">
+          <table class="table table-sm">
+            <tr>
+              <th>Subtotal</th>
+              <td class="text-end">$ {{ po.subtotal|money }}</td>
+            </tr>
+            <tr>
+              <th>Tax ({{ po.tax_rate }}%)</th>
+              <td class="text-end">$ {{ po.tax_amount|money }}</td>
+            </tr>
+            <tr>
+              <th class="h5">Grand Total</th>
+              <td class="text-end h5">$ {{ po.grand_total|money }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
